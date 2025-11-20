@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyAPyT7Deb0TJr5cF2Ujc9yvzfITFSXXUDQ"; // <- replace
+const GOOGLE_MAPS_API_KEY = ""; // <- replace
 
 export default function MapPicker({ lat, lon, onChange }: MapPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
