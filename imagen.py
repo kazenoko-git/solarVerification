@@ -346,7 +346,7 @@ class Imagen:
                     results[idx] = Image.new("RGB", (256, 256), (200, 200, 200))
 
         tasks = [worker(x, y, z, i) for i, (x, y, z) in enumerate(coords)]
-        # tqdm progress for async tasks
+        # tqdm progress for async tasks 
         for f in tqdm_asyncio.as_completed(tasks, total=total):
             await f  # just await to drive progress
 
