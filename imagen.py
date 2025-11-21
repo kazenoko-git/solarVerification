@@ -153,6 +153,7 @@ class ImagenOld:
             raise RuntimeError("GIBS returned non-image data.")
         return Image.open(BytesIO(resp.content)).convert("RGB")
 
+
 """
 Imagen (update)
 - Async downloads with httpx
@@ -175,6 +176,25 @@ def tile_xy_to_quadkey(x: int, y: int, z: int) -> str:
         quadkey.append(str(bit))
     return "".join(quadkey)
 
+@staticmethod
+def crop_center(img, crop_width=640, crop_height=640):
+    """
+    Crop image to center, used to focus on target building.
+    
+    Args:
+        img: PIL Image to crop
+        crop_width: desired width (default 640)
+        crop_height: desired height (default 640)
+    
+    Returns:
+        Cropped PIL Image
+    """
+    w, h = img.size
+    left = int((w - crop_width) / 2)
+    top = int((h - crop_height) / 2)
+    right = left + crop_width
+    bottom = top + crop_height
+    return img.crop((left, top, right, bottom))
 
 class Imagen:
     def __init__(
@@ -211,6 +231,7 @@ class Imagen:
             raise ValueError("Bing provider requires a Bing Maps key argument.")
         quad = tile_xy_to_quadkey(x, y, z)
         return f"https://ecn.t3.tiles.virtualearth.net/tiles/a{quad}.jpeg?g=1&key={key}"
+
 
     # Cache helpers
     def _cache_path(self, provider: str, z: int, x: int, y: int, ext="png"):
@@ -429,5 +450,4 @@ class Imagen:
                 asyncio.run(self._client.aclose())
             except Exception:
                 pass
-
 

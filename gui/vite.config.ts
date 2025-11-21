@@ -3,9 +3,10 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    hmr: {
-      overlay: false, // ⛔ turn off Vite's red error overlay
+  clearScreen: false,
+  resolve: {
+    alias: {
+      // no aliases overriding `@tauri-apps/api`
     },
   },
 });

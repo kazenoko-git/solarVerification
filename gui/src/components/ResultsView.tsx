@@ -1,13 +1,17 @@
-export type SiteMeta = {
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
+
+export interface SiteMeta {
   sample_id: string;
   lat: number;
   lon: number;
   zoom: number;
   radius: number;
   provider: string;
-};
+}
 
-export type AiResult = {
+export interface AiResult {
   sample_id: string;
   lat: number;
   lon: number;
@@ -16,197 +20,223 @@ export type AiResult = {
   panel_count_est: number;
   pv_area_sqm_est: number;
   capacity_kw_est: number;
-  qc_status: "verifiable" | "not_verifiable" | string;
+  qc_status: string;
   qc_notes: string[];
-  bbox_or_mask: string;
-  image_metadata: {
+  bbox_or_mask: any[];
+  audit_overlay_path?: string;
+  image_metadata?: {
     source: string;
     capture_date: string;
   };
-};
+}
 
-type ResultsViewProps = {
+interface ResultsViewProps {
   meta: SiteMeta;
   result: AiResult;
   imageSrc: string | null;
+  overlayImageSrc: string | null; // NEW: for annotated image
   onBack: () => void;
+}
+
+export default function ResultsView({ 
+  meta, 
+  result, 
+  imageSrc, 
+  overlayImageSrc, 
+  onBack 
+}: ResultsViewProps) {
+  const handleExportJSON = async () => {
+    try {
+      const fullData = { ...meta, ...result };
+      const defaultFileName = `detection_${meta.sample_id}_export.json`;
+      
+      const savePath = await save({
+        defaultPath: defaultFileName,
+        filters: [{ name: "JSON", extensions: ["json"] }]
+      });
+      
+      if (!savePath) return; // User cancelled
+      
+      await writeTextFile(savePath, JSON.stringify(fullData, null, 2));
+      alert(`✅ Exported to:\n${savePath}`);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert(`❌ Export failed: ${err}`);
+    }
+  };
+  const handleLabelForTraining = async () => {
+  try {
+    // Send labeled data to backend for training
+    await invoke("add_to_training_data", {
+      detection: result,
+      qcNotes: result.qc_notes, // User can edit before saving
+    });
+    alert("✅ Added to training data!");
+  } catch (err) {
+    alert(`❌ Failed: ${err}`);
+  }
 };
 
-export default function ResultsView({
-  meta,
-  result,
-  imageSrc,
-  onBack,
-}: ResultsViewProps) {
-  const jsonRecord = {
-    sample_id: meta.sample_id,
-    lat: meta.lat,
-    lon: meta.lon,
-    has_solar: result.has_solar,
-    confidence: result.confidence,
-    panel_count_est: result.panel_count_est,
-    pv_area_sqm_est: result.pv_area_sqm_est,
-    capacity_kw_est: result.capacity_kw_est,
-    qc_status: result.qc_status,
-    qc_notes: result.qc_notes,
-    bbox_or_mask: result.bbox_or_mask,
-    image_metadata: result.image_metadata,
-    zoom: meta.zoom,
-    radius: meta.radius,
-    provider: meta.provider,
-  };
 
-  const handleSaveJson = () => {
-    const blob = new Blob([JSON.stringify(jsonRecord, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `helioscope_${meta.sample_id}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const statusColor = result.has_solar
+    ? result.confidence > 0.7
+      ? "text-green-400"
+      : "text-yellow-400"
+    : "text-red-400";
 
-  const handleSaveImage = () => {
-    if (!imageSrc) return;
-    const a = document.createElement("a");
-    a.href = imageSrc;
-    a.download = `helioscope_${meta.sample_id}.png`;
-    a.click();
-  };
+  const statusIcon = result.has_solar
+    ? result.confidence > 0.7
+      ? "✓"
+      : "⚠"
+    : "✗";
 
   return (
-    <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
-      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
-        {/* HEADER */}
-        <header className="flex items-center justify-between px-8 py-4 border-b border-slate-800">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
-              Helioscope
-            </h1>
-            <p className="text-xs text-slate-500">by Wing-It Team</p>
-          </div>
-
+    <div className="flex flex-col h-screen w-screen bg-slate-950 text-white overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800">
+        <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-800 transition"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
           >
-            ← Back to map
+            ← Back
           </button>
-        </header>
+          <h2 className="text-xl font-bold">Detection Results</h2>
+        </div>
 
-        {/* BODY */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* LEFT: data */}
-          <div className="w-96 bg-slate-950 border-r border-slate-800 px-8 py-6 overflow-y-auto">
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">
-              Site summary
-            </h2>
+        <button
+          onClick={handleExportJSON}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg text-sm font-semibold transition-all"
+        >
+          💾 Export JSON
+        </button>
+        <button
+          onClick={handleLabelForTraining}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg text-sm font-semibold transition-all"
+        >
+          🏷️ Train
+        </button>
+      </div>
 
-            <dl className="text-xs space-y-1 text-slate-300 mb-4">
-              <div>
-                <dt className="font-mono text-slate-500">sample_id</dt>
-                <dd>{meta.sample_id}</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">lat, lon</dt>
-                <dd>
-                  {meta.lat.toFixed(6)}, {meta.lon.toFixed(6)}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">zoom / radius</dt>
-                <dd>
-                  {meta.zoom} / {meta.radius}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">provider</dt>
-                <dd>{meta.provider}</dd>
-              </div>
-            </dl>
-
-            <h2 className="text-sm font-semibold text-slate-200 mb-3">
-              AI inference
-            </h2>
-
-            <dl className="text-xs space-y-1 text-slate-300 mb-4">
-              <div>
-                <dt className="font-mono text-slate-500">has_solar</dt>
-                <dd>{String(result.has_solar)}</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">confidence</dt>
-                <dd>{(result.confidence * 100).toFixed(1)}%</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">panel_count_est</dt>
-                <dd>{result.panel_count_est}</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">pv_area_sqm_est</dt>
-                <dd>{result.pv_area_sqm_est.toFixed(2)} m²</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">capacity_kw_est</dt>
-                <dd>{result.capacity_kw_est.toFixed(2)} kW</dd>
-              </div>
-              <div>
-                <dt className="font-mono text-slate-500">qc_status</dt>
-                <dd>{result.qc_status}</dd>
-              </div>
-            </dl>
-
-            <div className="mb-4">
-              <div className="text-xs font-mono text-slate-500">qc_notes:</div>
-              <ul className="text-xs text-slate-300 list-disc list-inside">
-                {result.qc_notes.map((note, idx) => (
-                  <li key={idx}>{note}</li>
-                ))}
-              </ul>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Image Panel - NOW SHOWS ANNOTATED OUTPUT */}
+          <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-slate-800">
+              <h3 className="font-semibold text-lg">Detection Result</h3>
             </div>
-
-            <div className="mb-6 text-xs text-slate-400">
-              <div className="font-mono text-slate-500">image_metadata:</div>
-              <div>source: {result.image_metadata.source}</div>
-              <div>capture_date: {result.image_metadata.capture_date}</div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleSaveJson}
-                className="flex-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-semibold py-2 transition"
-              >
-                Save data as JSON
-              </button>
-              <button
-                onClick={handleSaveImage}
-                className="flex-1 rounded-lg border border-slate-700 hover:bg-slate-800 text-sm py-2 transition"
-              >
-                Save image
-              </button>
+            <div className="p-4">
+              {overlayImageSrc ? (
+                <img
+                  src={overlayImageSrc}
+                  alt="AI Detection Overlay"
+                  className="w-full rounded-lg"
+                />
+              ) : imageSrc ? (
+                <img
+                  src={imageSrc}
+                  alt="Satellite tile"
+                  className="w-full rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-64 bg-slate-800 rounded-lg flex items-center justify-center">
+                  <p className="text-slate-500">No image available</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* RIGHT: image */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-black">
-            <div className="px-4 py-2 text-xs text-slate-300 border-b border-slate-800">
-              Satellite image (stitched tile)
+          {/* Results Panel */}
+          <div className="space-y-6">
+            {/* Detection Status */}
+            <div className="bg-slate-900 rounded-lg border border-slate-800 p-6">
+              <h3 className="font-semibold text-lg mb-4">Detection Status</h3>
+              <div className={`text-5xl font-bold ${statusColor} mb-2`}>
+                {statusIcon}
+              </div>
+              <p className="text-2xl font-semibold mb-1">
+                {result.has_solar ? "Solar Panels Detected" : "No Solar Panels"}
+              </p>
+              <p className="text-slate-400 text-sm">
+                Confidence: {(result.confidence * 100).toFixed(1)}%
+              </p>
             </div>
-            <div className="flex-1 flex items-center justify-center overflow-hidden bg-black">
-              {imageSrc ? (
-                <img
-                  src={imageSrc}
-                  alt="Stitched satellite tile"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <span className="text-xs text-slate-500">
-                  No image available
-                </span>
-              )}
+
+            {/* Metrics */}
+            <div className="bg-slate-900 rounded-lg border border-slate-800 p-6">
+              <h3 className="font-semibold text-lg mb-4">Installation Metrics</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-slate-400 text-sm">Panel Count</p>
+                  <p className="text-2xl font-bold text-amber-400">
+                    {result.panel_count_est}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Area (m²)</p>
+                  <p className="text-2xl font-bold text-amber-400">
+                    {result.pv_area_sqm_est.toFixed(1)}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-400 text-sm">Est. Capacity</p>
+                  <p className="text-3xl font-bold text-amber-400">
+                    {result.capacity_kw_est.toFixed(2)} kW
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* Location Info */}
+            <div className="bg-slate-900 rounded-lg border border-slate-800 p-6">
+              <h3 className="font-semibold text-lg mb-4">Location Details</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Latitude:</span>
+                  <span className="font-mono">{meta.lat.toFixed(7)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Longitude:</span>
+                  <span className="font-mono">{meta.lon.toFixed(7)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Zoom Level:</span>
+                  <span>{meta.zoom}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Provider:</span>
+                  <span className="uppercase">{meta.provider}</span>
+                </div>
+                {result.image_metadata && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Source:</span>
+                      <span>{result.image_metadata.source}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Capture Date:</span>
+                      <span>{result.image_metadata.capture_date}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* QC Notes - AI Generated */}
+            {result.qc_notes.length > 0 && (
+              <div className="bg-slate-900 rounded-lg border border-slate-800 p-6">
+                <h3 className="font-semibold text-lg mb-3">AI Quality Analysis</h3>
+                <ul className="space-y-2">
+                  {result.qc_notes.map((note, i) => (
+                    <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                      <span className="text-amber-400">•</span>
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
