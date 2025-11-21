@@ -1,4 +1,68 @@
+# --------------------------
+# Node / Vite / React
+# --------------------------
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --------------------------
+# Tauri
+# --------------------------
+src-tauri/target/
+src-tauri/gen/
+src-tauri/.vite/
+*.app
+*.dmg
+*.deb
+*.rpm
+*.msi
+*.exe
+
+# --------------------------
+# Python junk
+# --------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# Don't commit model weights
+*.pt
+
+# Don't commit venvs
+.venv/
+venv/
+env/
+
+# --------------------------
+# Cache directories
+# --------------------------
+tile_cache/
+audit_overlays/
+detections/
+batch_results/
+
+# --------------------------
+# System / IDE
+# --------------------------
 .DS_Store
-.DS_Store
-.DS_Store
-.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --------------------------
+# Env files (VERY IMPORTANT)
+# --------------------------
+.env
+.env.*
+!.env.example

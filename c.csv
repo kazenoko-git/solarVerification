@@ -1,3 +1,0 @@
-confidence,panel_count,area_sqm,capacity_kw,has_solar,qc_notes
-0.92,14,45.5,9.3,True,high confidence detection; clear roof view with distinct shadows; large commercial installation; regular module grid pattern; significant area coverage
-0.75,8,28.3,5.8,True,moderate confidence detection; partially obscured by trees; residential system; module grid partially visible; medium area coverage
