@@ -53,6 +53,7 @@ tile_cache/
 audit_overlays/
 detections/
 batch_results/
+benchmark_outputs/
 
 # --------------------------
 # System / IDE

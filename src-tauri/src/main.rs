@@ -191,7 +191,7 @@ fn run_ai_analysis(image_b64: String) -> Result<String, String> {
 
     let tmp = project_root.join("tmp_input.png");
     let script = project_root.join("run_model.py");
-    let model = project_root.join("verifier2.pt");
+    let model = project_root.join("verifier1.pt");
 
     fs::write(
         &tmp,

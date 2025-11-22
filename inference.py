@@ -126,62 +126,7 @@ class Model:
         
         return self._generate_learned_notes(detection_data)
     
-    def _generate_learned_notes(self, data: Dict) -> List[str]:
-        """Generate notes using learned patterns"""
-        notes = []
-        conf = data['confidence']
-        count = data['panel_count']
-        area = data['area_sqm']
-        
-        # Confidence-based notes
-        if conf >= self.weights['conf_high']:
-            # Pick most common high-confidence note from training
-            conf_notes = self.patterns['confidence']
-            if conf_notes:
-                top_note = max(conf_notes, key=conf_notes.get)
-                notes.append(top_note)
-            else:
-                notes.append("high confidence detection - reliable result")
-        elif conf >= self.weights['conf_medium']:
-            notes.append("moderate confidence - manual review recommended")
-        else:
-            notes.append("low confidence - verification needed")
-        
-        # Size-based notes
-        if count >= self.weights['count_large']:
-            size_notes = self.patterns['size']
-            if size_notes:
-                notes.append(max(size_notes, key=size_notes.get))
-            else:
-                notes.append("large commercial installation detected")
-        elif count > 0:
-            notes.append("residential or small commercial system")
-        
-        # View quality
-        if conf > 0.7:
-            view_notes = self.patterns['view']
-            if view_notes:
-                notes.append(max(view_notes, key=view_notes.get))
-            else:
-                notes.append("clear roof view with good visibility")
-        else:
-            notes.append("obscured view or partial detection")
-        
-        # Grid pattern
-        if count > 3:
-            grid_notes = self.patterns['grid']
-            if grid_notes:
-                notes.append(max(grid_notes, key=grid_notes.get))
-            else:
-                notes.append("distinct module grid pattern visible")
-        
-        # Area assessment
-        if area >= self.weights['area_large']:
-            notes.append("significant panel coverage area")
-        elif area >= self.weights['area_medium']:
-            notes.append("moderate panel installation size")
-        
-        return notes[:5]  # Max 5 notes
+
     
     def _generate_rule_based_notes(self, data: Dict) -> List[str]:
         """Fallback rule-based notes when untrained"""
